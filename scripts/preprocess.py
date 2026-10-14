@@ -1,23 +1,17 @@
 """
-Preprocessing Script for PJ-SELLING-WEBSITE
-============================================
+Script preprocess du lieu cho PJ-SELLING-WEBSITE
+================================================
 
-Loads raw parquet files and generates processed data artifacts
-for the API backend to serve.
+Doc parquet goc va tao cac artifact su dung cho backend API.
 
-CO-PURCHASE DETECTION STRATEGY (no order_id/cart_id available):
-    Since transactions lack order_id or cart_id, we approximate
-    "shopping sessions" by grouping transactions by (customer_id, date).
-    Transactions by the same customer on the same day are treated as a
-    single session. Item pairs within a session are considered co-purchased.
-    Sessions with more than 50 unique items are excluded to avoid
-    combinatorial explosion from bulk buyers.
+Chien luoc phat hien co-purchase (khong co order_id/cart_id):
+    Gom transaction theo (customer_id, ngay) de mo phong session mua hang.
+    Cac item trong cung session duoc xem la mua cung nhau.
+    Session co hon 50 item duy nhat se bi loai de tranh no to hop.
 
-Generated artifacts (saved to data/ folder):
-    - products.parquet          : cleaned product catalog (price as Float64)
-    - item_popularity.parquet   : purchase count per item
-    - customer_history.parquet  : per-customer list of purchased item_ids
-    - item_cooccurrence.parquet : item-to-item co-occurrence counts (bidirectional)
+Artifact tao ra (luu trong thu muc data/):
+    - products.parquet          : catalog da lam sach + metadata size cho Ta
+    - item_cooccurrence.parquet : so lan xuat hien cung nhau giua cap item
 """
 
 import polars as pl
@@ -25,125 +19,179 @@ from pathlib import Path
 from collections import Counter
 from itertools import combinations
 import time
+import re
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 RAW_ITEMS = ROOT / "raw_data" / "items.parquet"
 RAW_TRANSACTIONS = ROOT / "raw_data" / "transactions-2025-12.parquet"
+DIAPER_CATEGORY = "T\u00e3"
+
+SIZE_RANK: dict[str, int] = {
+    "NB": 0,
+    "S": 1,
+    "M": 2,
+    "L": 3,
+    "XL": 4,
+    "XXL": 5,
+    "XXXL": 6,
+}
+SIZE_PATTERNS = [
+    re.compile(r"(?i)\bsize\s*(newborn|nb|xxxl|xxl|xl|l|m|s)\b"),
+    re.compile(r"(?i)\(\s*(newborn|nb|xxxl|xxl|xl|l|m|s)\s*[,)\-]"),
+    re.compile(r"(?i)\b(newborn|nb|xxxl|xxl|xl)\b"),
+    re.compile(r"(?i)\b(l|m|s)\s*\("),
+    re.compile(r"(?i)\b(l|m|s)\s*\d+\s*mi(?:e|[\u1ebf])ng\b"),
+]
+
+
+def _normalize_size_token(token: str | None) -> str | None:
+    """Chuan hoa alias size ve NB/S/M/L/XL/XXL/XXXL."""
+    if token is None:
+        return None
+    normalized = token.upper().replace(" ", "")
+    if normalized == "NEWBORN":
+        normalized = "NB"
+    return normalized if normalized in SIZE_RANK else None
+
+
+def _extract_size_from_text(text: str | None) -> str | None:
+    """Trich xuat size tu text mo ta bang regex an toan."""
+    if not text:
+        return None
+    cleaned = text.replace("\ufeff", " ")
+    for pattern in SIZE_PATTERNS:
+        match = pattern.search(cleaned)
+        if match:
+            size = _normalize_size_token(match.group(1))
+            if size:
+                return size
+    return None
+
+
+def _derive_diaper_size(values: dict[str, str | None]) -> str | None:
+    """Uu tien raw_size, neu khong co thi parse tu description."""
+    if values.get("category_l1") != DIAPER_CATEGORY:
+        return None
+    raw_size = _extract_size_from_text(values.get("raw_size"))
+    if raw_size:
+        return raw_size
+    return _extract_size_from_text(values.get("description"))
 
 
 def load_raw_data():
-    """Load and clean raw parquet files, removing discontinued items."""
-    print("Loading raw data...")
+    """Tai va lam sach du lieu parquet goc, loai item ngung ban."""
+    print("Dang tai du lieu goc...")
     items = pl.read_parquet(RAW_ITEMS)
     transactions = pl.read_parquet(RAW_TRANSACTIONS)
 
-    # Cast Decimal to Float64 for easier downstream processing
+    # Chuyen Decimal ve Float64 de xu ly sau do don gian hon.
     items = items.with_columns(pl.col("price").cast(pl.Float64))
     transactions = transactions.with_columns(
         pl.col("price").cast(pl.Float64),
         pl.col("updated_date").cast(pl.Datetime("us")),
     )
 
-    print(f"  Items (raw): {items.height} rows, {items.width} columns")
-    print(f"  Transactions (raw): {transactions.height} rows, {transactions.width} columns")
+    print(f"  Items (raw): {items.height} dong, {items.width} cot")
+    print(f"  Transactions (raw): {transactions.height} dong, {transactions.width} cot")
 
-    # Filter out discontinued items (sale_status == 0)
+    # Loai item ngung ban (sale_status == 0).
     items = items.filter(pl.col("sale_status") != 0)
-    print(f"  Items after removing discontinued (sale_status=0): {items.height} rows")
+    print(f"  Items sau khi loai ngung ban (sale_status=0): {items.height} dong")
 
-    # Remove transactions referencing discontinued items
+    # Loai transaction tham chieu item da ngung ban.
     active_item_ids = items["item_id"].unique()
-    transactions = transactions.filter(pl.col("item_id").is_in(active_item_ids))
-    print(f"  Transactions after filtering: {transactions.height} rows")
+    transactions = transactions.filter(
+        pl.col("item_id").is_in(active_item_ids.implode())
+    )
+    print(f"  Transactions sau khi loc: {transactions.height} dong")
 
     return items, transactions
 
 
 def build_products(items: pl.DataFrame):
-    """Save cleaned product catalog."""
-    print("\nBuilding products catalog...")
-    items.write_parquet(DATA_DIR / "products.parquet")
-    print(f"  Saved {items.height} products")
+    """Tao va luu catalog san pham da lam sach."""
+    print("\nDang tao products catalog...")
+    products = items
 
-
-def build_item_popularity(transactions: pl.DataFrame):
-    """Compute item purchase frequency for popularity-based ranking."""
-    print("\nBuilding item popularity...")
-    popularity = (
-        transactions.group_by("item_id")
-        .agg(pl.len().alias("purchase_count"))
-        .sort("purchase_count", descending=True)
-    )
-    popularity.write_parquet(DATA_DIR / "item_popularity.parquet")
-    print(f"  {popularity.height} items with purchase data")
-    print(f"  Top 5 most popular items:")
-    for row in popularity.head(5).to_dicts():
-        print(f"    {row['item_id']}: {row['purchase_count']} purchases")
-
-
-def build_customer_history(transactions: pl.DataFrame):
-    """Build per-customer purchase history (unique list of item_ids)."""
-    print("\nBuilding customer purchase history...")
-    history = (
-        transactions.group_by("customer_id")
-        .agg(
-            pl.col("item_id").unique().alias("purchased_items"),
-            pl.len().alias("total_purchases"),
+    if "size" in products.columns:
+        products = products.rename({"size": "raw_size"})
+    else:
+        products = products.with_columns(
+            pl.lit(None, dtype=pl.Utf8).alias("raw_size")
         )
-        .sort("total_purchases", descending=True)
+
+    if "description" not in products.columns:
+        products = products.with_columns(
+            pl.lit(None, dtype=pl.Utf8).alias("description")
+        )
+
+    products = (
+        products
+        .with_columns(
+            (pl.col("category_l1") == DIAPER_CATEGORY).alias("is_diaper")
+        )
+        .with_columns(
+            pl.struct(["raw_size", "description", "category_l1"])
+            .map_elements(_derive_diaper_size, return_dtype=pl.Utf8)
+            .alias("normalized_size")
+        )
+        .with_columns(
+            pl.col("normalized_size")
+            .map_elements(lambda v: SIZE_RANK.get(v), return_dtype=pl.Int32)
+            .alias("size_rank")
+        )
     )
-    history.write_parquet(DATA_DIR / "customer_history.parquet")
-    avg_items = history["purchased_items"].list.len().mean()
-    print(f"  {history.height} customers")
-    print(f"  Avg unique items per customer: {avg_items:.1f}")
+
+    products.write_parquet(DATA_DIR / "products.parquet")
+    print(f"  Da luu {products.height} products")
 
 
 def build_cooccurrence(transactions: pl.DataFrame):
     """
-    Build item co-occurrence matrix using pseudo-session approach.
+    Tao ma tran co-occurrence theo pseudo-session.
 
-    Strategy:
-        1. Group transactions by (customer_id, date) to form pseudo-sessions
-        2. Keep sessions with 2-50 unique items
-        3. For each session, generate all unique item pairs
-        4. Count how often each pair appears across all sessions
-        5. Store both directions (A→B and B→A) for easy lookup
+    Cach lam:
+        1. Gom transaction theo (customer_id, ngay)
+        2. Giu session co 2-50 item duy nhat
+        3. Tao tat ca cap item trong tung session
+        4. Dem tan suat xuat hien cua moi cap
+        5. Luu 2 chieu A->B va B->A de truy van nhanh
     """
-    print("\nBuilding co-occurrence matrix...")
+    print("\nDang tao co-occurrence matrix...")
     start = time.time()
 
-    # Create pseudo-sessions: same customer + same day
+    # Tao pseudo-session: cung customer + cung ngay.
     sessions = (
         transactions.with_columns(
             pl.col("updated_date").dt.date().alias("session_date")
         )
         .group_by(["customer_id", "session_date"])
         .agg(pl.col("item_id").unique().alias("items"))
-        .filter(pl.col("items").list.len() >= 2)   # Need at least 2 items for pairs
-        .filter(pl.col("items").list.len() <= 50)   # Cap to avoid combinatorial explosion
+        .filter(pl.col("items").list.len() >= 2)   # Can >= 2 item moi tao duoc cap
+        .filter(pl.col("items").list.len() <= 50)   # Gioi han de tranh no to hop
     )
 
     n_sessions = sessions.height
-    print(f"  Sessions with 2-50 unique items: {n_sessions}")
+    print(f"  So session co 2-50 item duy nhat: {n_sessions}")
 
-    # Count co-occurrence pairs using Python Counter
+    # Dem cap co-occurrence bang Python Counter.
     pair_counts: Counter = Counter()
     session_items_list = sessions["items"].to_list()
 
     for idx, items_in_session in enumerate(session_items_list):
         if idx % 100000 == 0 and idx > 0:
-            print(f"    Processing session {idx}/{n_sessions}...")
+            print(f"    Dang xu ly session {idx}/{n_sessions}...")
         sorted_items = sorted(set(items_in_session))
         for a, b in combinations(sorted_items, 2):
             pair_counts[(a, b)] += 1
 
     elapsed = time.time() - start
-    print(f"  Unique directional pairs: {len(pair_counts)}")
-    print(f"  Pair generation time: {elapsed:.1f}s")
+    print(f"  So cap co huong duy nhat: {len(pair_counts)}")
+    print(f"  Thoi gian tao cap: {elapsed:.1f}s")
 
     if pair_counts:
-        # Store both directions (a→b and b→a) for easy lookup
+        # Luu ca 2 chieu (a->b va b->a) de truy van de hon.
         items_a, items_b, counts = [], [], []
         for (a, b), count in pair_counts.items():
             items_a.extend([a, b])
@@ -166,7 +214,7 @@ def build_cooccurrence(transactions: pl.DataFrame):
         })
 
     cooccurrence.write_parquet(DATA_DIR / "item_cooccurrence.parquet")
-    print(f"  Total co-occurrence entries (bidirectional): {cooccurrence.height}")
+    print(f"  Tong ban ghi co-occurrence (2 chieu): {cooccurrence.height}")
 
 
 def main():
@@ -174,12 +222,10 @@ def main():
 
     items, transactions = load_raw_data()
     build_products(items)
-    build_item_popularity(transactions)
-    build_customer_history(transactions)
     build_cooccurrence(transactions)
 
     print("\n" + "=" * 50)
-    print("Preprocessing complete! Artifacts saved to data/")
+    print("Preprocess hoan tat! Da luu artifact vao data/")
     print("=" * 50)
 
 

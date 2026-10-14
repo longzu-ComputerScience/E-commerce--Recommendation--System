@@ -32,11 +32,17 @@ export default function SearchFilter({
   const hasFilters = search !== "" || category !== "";
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4 mb-8 shadow-sm">
+    <div
+      className="glass-surface p-4 mb-8"
+      style={{
+        background: "rgba(30, 41, 59, 0.5)",
+        border: "1px solid rgba(148, 163, 184, 0.1)",
+      }}
+    >
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1 relative">
           <svg
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-teal-400/60"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -54,13 +60,30 @@ export default function SearchFilter({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && triggerSearch()}
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 focus:bg-white text-sm transition-all placeholder:text-gray-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg text-sm transition-all placeholder:text-gray-500 text-gray-200 focus:outline-none"
+            style={{
+              background: "rgba(255, 255, 255, 0.05)",
+              border: "1px solid rgba(148, 163, 184, 0.12)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "rgba(20, 184, 166, 0.5)";
+              e.currentTarget.style.boxShadow =
+                "0 0 12px rgba(20, 184, 166, 0.12)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "rgba(148, 163, 184, 0.12)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
           />
         </div>
         <select
           value={category}
           onChange={(e) => handleCategoryChange(e.target.value)}
-          className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 text-sm transition-all cursor-pointer sm:w-52"
+          className="px-4 py-2.5 rounded-lg text-sm transition-all cursor-pointer sm:w-52 text-gray-200 focus:outline-none"
+          style={{
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(148, 163, 184, 0.12)",
+          }}
         >
           <option value="">All Categories</option>
           {categories.map((cat) => (
@@ -69,16 +92,14 @@ export default function SearchFilter({
             </option>
           ))}
         </select>
-        <button
-          onClick={triggerSearch}
-          className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all text-sm font-semibold shadow-sm hover:shadow-md active:scale-[0.98]"
-        >
+        <button onClick={triggerSearch} className="btn-gradient px-6 py-2.5 text-sm">
           Search
         </button>
         {hasFilters && (
           <button
             onClick={handleClear}
-            className="px-4 py-2.5 text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all text-sm"
+            className="px-4 py-2.5 text-gray-400 hover:text-gray-200 rounded-lg hover:bg-white/5 transition-all text-sm"
+            style={{ border: "1px solid rgba(148, 163, 184, 0.12)" }}
           >
             Clear
           </button>

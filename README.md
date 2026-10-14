@@ -1,304 +1,90 @@
-# PJ-SELLING-WEBSITE
+# CS116 — E-Commerce Recommendation & Sales Forecasting
 
-A full-stack e-commerce demo project showcasing two smart features:
+A full-stack e-commerce prototype and two machine learning experiments developed for **CS116: Python Programming for Machine Learning**. The app explores product discovery and recommendation, while the notebooks investigate personalized item recommendation and location-level sales forecasting.
 
-1. **Product Recommendation** — personalised product suggestions for customers
-2. **Related Products Display** — similar and complementary products on product detail pages
+## Components
 
----
+| Module | What it does | Implementation |
+| --- | --- | --- |
+| Web application | Product catalog, search, related items, up-sell suggestions, forecast view | [frontend/](frontend/), [backend/](backend/) |
+| Task 1 — Personalized Item Recommendation (PIR) | Ranks ten products for each customer from historical purchases and interactions | [Notebook](ml/task1-personalized-recommendation/task1.ipynb), [explanation](ml/task1-personalized-recommendation/explain.md) |
+| Task 2 — Location Sales Forecasting (LSF) | Predicts monthly quantities for `(location, item_id)` pairs | [Notebook](ml/task2-sales-forecasting/lsf-latest-full-holiday.ipynb), [explanation](ml/task2-sales-forecasting/explain.md) |
 
-## Tech Stack
+**Stack:** Next.js 14, React 18, TypeScript, Tailwind CSS; Python, FastAPI, Polars; Jupyter, LightGBM, Optuna and scikit-learn.
 
-| Layer            | Technology         |
-| ---------------- | ------------------ |
-| Frontend         | Next.js 14, React 18, TypeScript, Tailwind CSS |
-| Backend          | Python, FastAPI    |
-| Data Processing  | Polars             |
+## Repository layout
 
----
-
-## Project Structure
-
-```
-PJ-SELLING-WEBSITE/
-├── items.parquet                      # Raw product catalog (29,808 items)
-├── transactions-2025-12.parquet       # Raw transaction history (3.7M rows)
-├── data/                              # Generated artifacts (from preprocessing)
-│   ├── products.parquet
-│   ├── item_popularity.parquet
-│   ├── customer_history.parquet
-│   └── item_cooccurrence.parquet
-├── scripts/
-│   └── preprocess.py                  # Data preprocessing script
-├── backend/
-│   ├── requirements.txt
-│   └── app/
-│       ├── main.py                    # FastAPI entry point
-│       ├── api/
-│       │   └── routes.py              # API endpoints
-│       └── services/
-│           ├── data_loader.py         # Loads artifacts into memory
-│           ├── product_service.py     # Product listing & search
-│           ├── recommendation_service.py
-│           └── related_products_service.py
-├── frontend/
-│   ├── package.json
-│   ├── tailwind.config.ts
-│   ├── app/
-│   │   ├── layout.tsx
-│   │   ├── page.tsx                   # Home (product listing)
-│   │   ├── products/[id]/page.tsx     # Product detail + related products
-│   │   └── recommendations/page.tsx   # Recommendation page
-│   ├── components/
-│   │   ├── Header.tsx
-│   │   ├── ProductCard.tsx
-│   │   ├── ProductGrid.tsx
-│   │   ├── SearchFilter.tsx
-│   │   ├── RelatedProducts.tsx
-│   │   └── RecommendationList.tsx
-│   └── lib/
-│       ├── api.ts                     # API client
-│       └── types.ts                   # TypeScript types
-└── README.md
+```text
+backend/                              FastAPI endpoints and recommendation services
+frontend/                             Next.js pages and UI components
+scripts/preprocess.py                 Product and co-occurrence preprocessing
+ml/
+  task1-personalized-recommendation/
+    task1.ipynb                       PIR notebook
+    explain.md / report.md             Task explanation and presentation notes
+    experiments/                       Optional PIR experiments (not required for the website)
+  task2-sales-forecasting/
+    lsf-latest-full-holiday.ipynb      LightGBM forecasting experiment
+    explain.md / report.md             Task explanation and presentation notes
+    requirements.txt                   Notebook dependencies
+data/                                LOCAL ONLY: website runtime parquet
+raw_data/                            LOCAL ONLY: source datasets
+DATASETS.md                          Expected data and privacy notes
 ```
 
----
+## Run locally
 
-## How to Run
+**Requirements:** Python 3.10+ and a Node.js version compatible with Next.js 14.
 
-### Prerequisites
+1. Place the datasets at the paths documented in [DATASETS.md](DATASETS.md). The public repository intentionally excludes datasets, models and submissions.
+2. Install backend dependencies from the repository root:
 
-- Python 3.10+
-- Node.js 18+
-- npm
+   ```bash
+   python -m pip install -r backend/requirements.txt
+   ```
 
-### Step 1: Preprocess Data
+3. Start the API:
 
-```bash
-cd PJ-SELLING-WEBSITE
-pip install polars
-python scripts/preprocess.py
-```
+   ```bash
+   python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+   ```
 
-This generates `data/*.parquet` files used by the backend.
+   API documentation: <http://localhost:8000/docs>.
 
-### Step 2: Start Backend
+4. In a separate terminal, install and start the frontend:
 
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
+   ```bash
+   cd frontend
+   npm ci
+   npm run dev
+   ```
 
-Backend runs at **http://localhost:8000**.  
-API docs at **http://localhost:8000/docs**.
+   Browse <http://localhost:3000>. The frontend uses `NEXT_PUBLIC_API_URL` if configured, otherwise `http://localhost:8000/api`.
 
-### Step 3: Start Frontend
+### Useful commands
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+| Command | Purpose |
+| --- | --- |
+| `python scripts/preprocess.py` | Generate the local product and co-purchase parquet files from the appropriate raw datasets |
+| `npm run backend` | Run the backend from the repository root after installing requirements |
+| `npm run dev` | Run the frontend from the repository root |
+| `cd frontend && npm run build` | Validate a production frontend build |
 
-Frontend runs at **http://localhost:3000**.
+## ML experiments
 
----
+**Task 1:** Personalized top-10 product recommendation, evaluated using Precision@10 as explained in [Task 1 report](ml/task1-personalized-recommendation/report.md). Supporting exploratory scripts are in the `experiments/` folder.
 
-## API Endpoints
+**Task 2:** Time-aware location/item quantity forecasting with LightGBM; the project reports discuss quantity MAPE. Use `pip install -r ml/task2-sales-forecasting/requirements.txt` for the notebook environment.
 
-| Method | Endpoint                          | Description                                |
-| ------ | --------------------------------- | ------------------------------------------ |
-| GET    | `/api/health`                     | Health check                               |
-| GET    | `/api/products`                   | List products (pagination, filter, search) |
-| GET    | `/api/products/{item_id}`         | Get single product                         |
-| GET    | `/api/categories`                 | List all top-level categories              |
-| GET    | `/api/brands`                     | List all brands                            |
-| GET    | `/api/recommendations/{customer_id}` | Personalised recommendations           |
-| GET    | `/api/related/{item_id}`          | Related products for an item               |
+The committed notebooks contain editable code without saved execution outputs. Some source cells refer to the original research folder layout, so you may need to adjust paths before rerunning locally. Large outputs and pickled predictions remain in the local archive.
 
-### Example Requests
+## Data privacy and deployment
 
-```bash
-# List products (page 1, 20 per page)
-curl http://localhost:8000/api/products?page=1&page_size=20
+- GitHub does **not** contain transaction/customer histories, raw interaction events, serialized customer recommendations, trained models or generated predictions.
+- Follow [DATASETS.md](DATASETS.md) to restore local data. Do not redistribute the dataset without appropriate permissions.
+- The FastAPI backend loads local parquet on startup. The web app needs the backend running separately; a standalone Next.js deployment does not automatically include this service.
+- This is a course demonstration, **not** a production payment or e-commerce platform.
 
-# Filter by category
-curl http://localhost:8000/api/products?category=Babycare
+## Project history
 
-# Get a product
-curl http://localhost:8000/api/products/0020020000253
-
-# Recommendations for customer 7853616
-curl http://localhost:8000/api/recommendations/7853616
-
-# Related products for item 0020020000253
-curl http://localhost:8000/api/related/0020020000253
-```
-
----
-
-## How Recommendation Works
-
-### Algorithm: Co-occurrence Collaborative Filtering
-
-1. **Look up** the customer's purchase history (items they have bought).
-2. For each purchased item, **query the co-occurrence table** to find items
-   frequently bought together with it by other customers.
-3. **Aggregate** co-occurrence scores across all purchased items.
-4. **Remove** items the customer already owns.
-5. **Rank** by total score and return the top N results.
-
-### Cold-Start Handling
-
-If the customer has no purchase history (or no co-occurrence data exists for
-their purchases), the system falls back to **globally popular products** ranked
-by total purchase count.
-
-### Response Format
-
-The API response includes a `strategy` field:
-- `"personalized"` — co-occurrence-based recommendations
-- `"popular"` — popularity fallback
-
----
-
-## How Related Products Works
-
-### Algorithm: Behavioral + Metadata Hybrid
-
-Related products combine two signals:
-
-#### 1. Behavioral Signal (weight = 0.6)
-
-Uses the co-occurrence table to find items frequently co-purchased with the
-target item. Scores are normalised to [0, 1] by dividing by the max
-co-occurrence count for that item.
-
-This captures **complementary products** — e.g. baby formula → bottles.
-
-#### 2. Metadata Similarity (weight = 0.4)
-
-Computes a similarity score from the product catalog:
-
-| Match                  | Score |
-| ---------------------- | ----- |
-| Same `category_l1`    | 0.25  |
-| Same `category_l2`    | +0.25 |
-| Same `category_l3`    | +0.25 |
-| Same `brand`          | +0.25 |
-
-This captures **similar products** within the same category hierarchy.
-
-#### Final Score
-
-```
-relation_score = 0.6 × behavioral_score + 0.4 × metadata_score
-```
-
-When no behavioral data exists for an item, only metadata similarity is used
-(strategy = `"metadata_only"`).
-
----
-
-## Dataset Details
-
-### items.parquet — Product Catalog
-
-| Field          | Type    | Description                     |
-| -------------- | ------- | ------------------------------- |
-| item_id        | string  | Unique product identifier       |
-| price          | decimal | Product price (VND)             |
-| category_l1    | string  | Top-level category (15 values)  |
-| category_l2    | string  | Second-level category           |
-| category_l3    | string  | Third-level category            |
-| category       | string  | Detailed category name          |
-| brand          | string  | Product brand                   |
-| manufacturer   | string  | Product manufacturer            |
-| sale_status    | int     | 0 = normal, 1 = on sale         |
-
-29,808 products. Vietnamese baby/children's products.
-
-### transactions-2025-12.parquet — Transaction History
-
-| Field          | Type     | Description                    |
-| -------------- | -------- | ------------------------------ |
-| customer_id    | int      | Customer identifier            |
-| item_id        | string   | Product identifier             |
-| price          | decimal  | Transaction price (VND)        |
-| channel        | string   | Purchase channel (iOS, SPE…)   |
-| payment        | string   | Payment method                 |
-| updated_date   | datetime | Transaction timestamp          |
-
-3,782,467 rows. 848,641 unique customers. December 2025.
-
----
-
-## Handling the Lack of order_id
-
-**Problem:** The transaction data does not contain `order_id` or `cart_id`,
-making it impossible to directly identify which items were purchased together
-in a single order.
-
-**Solution — Pseudo-Session Approximation:**
-
-We define a "session" as all transactions by the same customer on the same
-calendar day:
-
-```
-session = (customer_id, date)
-```
-
-Items within a session are treated as co-purchased. This is a practical
-approximation because:
-
-- Most customers have few purchases per month (~4.5 avg).
-- Same-day purchases likely belong to the same or related shopping intent.
-- The approach is simple, explainable, and produces useful co-occurrence signals.
-
-**Safeguards:**
-- Sessions must have ≥ 2 unique items to contribute pairs.
-- Sessions with > 50 unique items are excluded (bulk buyers / noise).
-- Both item directions (A→B and B→A) are stored for symmetric lookup.
-
----
-
-## Deploying to Vercel (Frontend)
-
-### Option A: Set Root Directory (Recommended)
-
-1. Push code to GitHub
-2. Import the repo in [Vercel](https://vercel.com/new)
-3. In **Project Settings → General → Root Directory**, set to `frontend`
-4. Add environment variable `NEXT_PUBLIC_API_URL` = your backend URL (e.g. `https://your-backend.railway.app/api`)
-5. Deploy
-
-### Option B: Deploy from repo root
-
-The `vercel.json` at the repo root is configured to build from the `frontend/` subdirectory. If Option A is not used:
-
-1. Import the repo in Vercel (leave Root Directory as default)
-2. Vercel will use `vercel.json` settings automatically
-3. Add `NEXT_PUBLIC_API_URL` in **Settings → Environment Variables**
-4. Deploy
-
-> **Note:** The backend (FastAPI) must be deployed separately (e.g., Railway, Render, Fly.io). Without a running backend, the frontend will display an error message with a Retry button. Set the `ALLOWED_ORIGIN` env var on the backend to your Vercel domain for CORS.
-
----
-
-## Limitations
-
-- No product images available — UI uses emoji placeholders.
-- No product names — `category` field is used as the display name.
-- Pseudo-session approximation may group unrelated purchases made on the
-  same day.
-- Recommendations are based on December 2025 data only — seasonality is
-  not accounted for.
-- All data is loaded into memory — suitable for demo size but not for
-  production scale.
-
----
-
-## License
-
-Student demo project for CS116 — Python Programming for ML.
+The current `main` branch provides one curated version of the website and both tasks. Earlier experiments, duplicate notebooks, bulky model outputs and the previous divergent `ForeCast` worktree were preserved locally during the cleanup; they are not included in this public source snapshot.

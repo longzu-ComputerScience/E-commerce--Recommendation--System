@@ -26,10 +26,23 @@ export default function RelatedProducts({ itemId }: { itemId: string }) {
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="h-6 bg-gray-200 rounded w-48 mb-3" />
+        <div className="skeleton rounded h-6 w-48 mb-4" />
         <div className="flex gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-48 bg-gray-200 rounded-lg h-60" />
+            <div
+              key={i}
+              className="flex-shrink-0 w-48 rounded-2xl h-60"
+              style={{
+                background: "rgba(30, 41, 59, 0.6)",
+                border: "1px solid rgba(148, 163, 184, 0.08)",
+              }}
+            >
+              <div className="skeleton rounded-xl h-32 m-3" />
+              <div className="px-3 space-y-2">
+                <div className="skeleton rounded-full h-3 w-16" />
+                <div className="skeleton rounded h-3 w-full" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
@@ -38,7 +51,9 @@ export default function RelatedProducts({ itemId }: { itemId: string }) {
 
   if (error) {
     return (
-      <p className="text-red-500 text-sm">Failed to load related products.</p>
+      <p className="text-red-400 text-sm glass-surface px-4 py-3">
+        ⚠️ Failed to load related products.
+      </p>
     );
   }
 
@@ -47,7 +62,7 @@ export default function RelatedProducts({ itemId }: { itemId: string }) {
   return (
     <HorizontalProductRow
       products={related}
-      title="Related Products"
+      title="Related Products (Solution 1)"
       badge={strategy}
     />
   );

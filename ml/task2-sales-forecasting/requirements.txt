@@ -1,0 +1,17 @@
+# Notebook runtime
+jupyterlab
+ipykernel
+
+# Data processing
+numpy
+pandas
+polars
+pyarrow
+
+# Modeling
+lightgbm
+optuna
+scikit-learn
+
+# Visualization
+matplotlib

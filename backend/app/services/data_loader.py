@@ -1,8 +1,10 @@
 """
-Data Loader — loads preprocessed parquet artifacts into memory.
+Data Loader
+===========
 
-Singleton pattern ensures data is loaded only once at startup.
-All services read from the shared DataStore instance.
+Tai cac parquet da preprocess vao RAM.
+Dung singleton de chi tai 1 lan khi khoi dong.
+Tat ca service se dung chung DataStore nay.
 """
 
 import polars as pl
@@ -12,61 +14,59 @@ DATA_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data"
 
 
 class DataStore:
-    """In-memory data store holding all preprocessed artifacts."""
+    """Kho du lieu trong RAM chua cac artifact da preprocess."""
 
     def __init__(self):
-        print(f"Loading data from {DATA_DIR} ...")
+        print(f"Dang tai du lieu tu {DATA_DIR} ...")
 
         self.products = pl.read_parquet(DATA_DIR / "products.parquet")
         self.cooccurrence = pl.read_parquet(DATA_DIR / "item_cooccurrence.parquet")
-        self.popularity = pl.read_parquet(DATA_DIR / "item_popularity.parquet")
-        self.customer_history = pl.read_parquet(DATA_DIR / "customer_history.parquet")
 
-        # Ensure price is Float64 (safe if already cast during preprocessing)
+        # Dam bao cot gia co kieu Float64.
         if self.products.schema.get("price") != pl.Float64:
             self.products = self.products.with_columns(
                 pl.col("price").cast(pl.Float64)
             )
 
-        # Build dict-based indexes for O(1) row lookup
+        # Tuong thich nguoc neu products.parquet duoc tao truoc khi
+        # co cac cot metadata size.
+        optional_columns: dict[str, pl.DataType] = {
+            "description": pl.Utf8,
+            "raw_size": pl.Utf8,
+            "normalized_size": pl.Utf8,
+            "size_rank": pl.Int32,
+            "is_diaper": pl.Boolean,
+        }
+        for col_name, dtype in optional_columns.items():
+            if col_name not in self.products.columns:
+                self.products = self.products.with_columns(
+                    pl.lit(None, dtype=dtype).alias(col_name)
+                )
+
+        # Tao index dict de tra cuu dong O(1).
         self._product_index: dict[str, int] = {
             val: idx
             for idx, val in enumerate(self.products["item_id"].to_list())
         }
-        self._customer_index: dict[int, int] = {
-            val: idx
-            for idx, val in enumerate(
-                self.customer_history["customer_id"].to_list()
-            )
-        }
 
-        print(f"  Products loaded:      {self.products.height}")
-        print(f"  Co-occurrence entries: {self.cooccurrence.height}")
-        print(f"  Popularity entries:    {self.popularity.height}")
-        print(f"  Customers loaded:      {self.customer_history.height}")
-        print("Data loaded successfully.\n")
+        print(f"  So product:            {self.products.height}")
+        print(f"  So ban ghi co-buy:     {self.cooccurrence.height}")
+        print("Tai du lieu thanh cong.\n")
 
     def get_product(self, item_id: str) -> dict | None:
-        """Return a single product dict by item_id, or None."""
+        """Tra ve 1 product theo item_id, khong co thi tra None."""
         idx = self._product_index.get(item_id)
         if idx is None:
             return None
         return self.products.row(idx, named=True)
 
-    def get_customer_items(self, customer_id: int) -> list[str] | None:
-        """Return list of item_ids purchased by a customer, or None."""
-        idx = self._customer_index.get(customer_id)
-        if idx is None:
-            return None
-        return self.customer_history.row(idx, named=True)["purchased_items"]
 
-
-# Module-level singleton
+# Bien singleton o muc module.
 _store: DataStore | None = None
 
 
 def get_data_store() -> DataStore:
-    """Get or create the singleton DataStore instance."""
+    """Lay hoac tao DataStore singleton."""
     global _store
     if _store is None:
         _store = DataStore()

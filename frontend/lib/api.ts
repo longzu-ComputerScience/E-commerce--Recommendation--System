@@ -3,14 +3,15 @@ import {
   ProductListResponse,
   RecommendationResponse,
   RelatedProductsResponse,
+  ForecastResponse,
 } from "./types";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
-async function fetchAPI<T>(path: string): Promise<T> {
+async function fetchAPI<T>(path: string, timeoutMs = 10000): Promise<T> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(`${API_BASE}${path}`, {
@@ -29,7 +30,9 @@ async function fetchAPI<T>(path: string): Promise<T> {
     }
     if (err instanceof TypeError) {
       throw new Error(
-        "Cannot connect to the backend. Make sure it is running on port 8000."
+        "Cannot reach the backend at " +
+          API_BASE +
+          ". Make sure it is running and CORS is configured correctly."
       );
     }
     throw err;
@@ -62,11 +65,11 @@ export async function getProduct(itemId: string): Promise<Product> {
 }
 
 export async function getRecommendations(
-  customerId: number,
+  itemId: string,
   n: number = 20
 ): Promise<RecommendationResponse> {
   return fetchAPI<RecommendationResponse>(
-    `/recommendations/${customerId}?n=${n}`
+    `/recommendations/${encodeURIComponent(itemId)}?n=${n}`
   );
 }
 
@@ -81,4 +84,9 @@ export async function getRelatedProducts(
 
 export async function getCategories(): Promise<string[]> {
   return fetchAPI<string[]>("/categories");
+}
+
+export async function getForecast(): Promise<ForecastResponse> {
+  // Forecast training can be slow on first call — use 120s timeout
+  return fetchAPI<ForecastResponse>("/forecast/solution3", 120000);
 }

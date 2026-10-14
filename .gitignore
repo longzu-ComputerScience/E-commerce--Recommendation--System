@@ -1,36 +1,47 @@
-# Dependencies
+# JavaScript
 node_modules/
-frontend/node_modules/
-
-# Next.js build output
-frontend/.next/
-frontend/out/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.egg-info/
-.venv/
+.next/
+out/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+# Python environments, caches
 venv/
-env/
-
-# Generated data artifacts (reproducible via preprocess.py)
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+*.py[cod]
+*.egg-info/
+# Local-only large data, models and predictions
 data/
-
-# OS files
+raw_data/
+*.parquet
+*.pkl
+*.pickle
+*.lgb
+*.joblib
+*.npy
+*.npz
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.pt
+*.pth
+*.onnx
+ml/**/outputs/
+ml/**/submissions/
+ml/**/_artifacts/
+ml/**/_feature_cache/
+# Secrets
+.env
+.env.*
+!.env.example
+# Workspace
+*.log
 .DS_Store
 Thumbs.db
-
-# Environment
-.env
-.env.local
-.env.production
-
-# IDE
-.vscode/
 .idea/
-
-# Logs
-*.log
-npm-debug.log*
+.vscode/
+.gitnexus/

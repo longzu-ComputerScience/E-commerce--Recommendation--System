@@ -1,90 +1,64 @@
 "use client";
 
-import { useState } from "react";
-import { Product } from "@/lib/types";
-import { getRecommendations } from "@/lib/api";
-import ProductGrid from "./ProductGrid";
+import Link from "next/link";
 
+/**
+ * RecommendationList — replaces the old manual item-ID input form.
+ * Now shows a helpful message directing users to browse the catalog.
+ */
 export default function RecommendationList() {
-  const [customerId, setCustomerId] = useState("");
-  const [recommendations, setRecommendations] = useState<Product[]>([]);
-  const [strategy, setStrategy] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [searched, setSearched] = useState(false);
-
-  const handleSearch = async () => {
-    const id = parseInt(customerId, 10);
-    if (isNaN(id)) {
-      setError("Please enter a valid customer ID (number).");
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setSearched(true);
-
-    try {
-      const data = await getRecommendations(id);
-      setRecommendations(data.recommendations);
-      setStrategy(data.strategy);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to fetch recommendations.";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <div>
-      <div className="flex gap-3 mb-6">
-        <input
-          type="text"
-          placeholder="Enter Customer ID (e.g. 7853616)"
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          className="flex-1 max-w-md px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-        />
-        <button
-          onClick={handleSearch}
-          disabled={loading || !customerId}
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+    <div
+      className="rounded-2xl p-8 sm:p-10 text-center"
+      style={{
+        background: "rgba(15, 23, 42, 0.6)",
+        border: "1px solid rgba(148, 163, 184, 0.1)",
+      }}
+    >
+      <div className="text-5xl mb-5">🛍️</div>
+      <h2 className="text-xl font-bold text-gray-100 mb-3">
+        How Recommendations Work
+      </h2>
+      <p className="text-gray-400 max-w-lg mx-auto mb-2 text-sm leading-relaxed">
+        Browse our product catalog and click on any product to see its detail
+        page. Recommendations are generated automatically based on the product
+        you&apos;re viewing.
+      </p>
+      <ul className="text-gray-400 text-sm max-w-md mx-auto mb-6 text-left space-y-2">
+        <li className="flex items-start gap-2">
+          <span className="text-teal-400 mt-0.5">•</span>
+          <span>
+            <strong className="text-gray-200">All products</strong> show
+            related items via co-purchase analysis (Solution&nbsp;1).
+          </span>
+        </li>
+        <li className="flex items-start gap-2">
+          <span className="text-teal-400 mt-0.5">•</span>
+          <span>
+            <strong className="text-gray-200">Diaper products</strong>{" "}
+            additionally show up-sale recommendations (Solution&nbsp;2).
+          </span>
+        </li>
+      </ul>
+      <Link
+        href="/"
+        className="btn-gradient inline-flex items-center gap-2 px-6 py-2.5 text-sm"
+      >
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
         >
-          {loading ? "Loading..." : "Get Recommendations"}
-        </button>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-4 text-sm">
-          {error}
-        </div>
-      )}
-
-      {searched && !loading && !error && (
-        <div>
-          {strategy && (
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-sm text-gray-500">Strategy:</span>
-              <span
-                className={`text-xs px-2 py-0.5 rounded ${
-                  strategy === "personalized"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-yellow-100 text-yellow-700"
-                }`}
-              >
-                {strategy}
-              </span>
-            </div>
-          )}
-          <ProductGrid
-            products={recommendations}
-            title={`Recommendations (${recommendations.length} products)`}
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"
           />
-        </div>
-      )}
+        </svg>
+        Browse Products
+      </Link>
     </div>
   );
 }

@@ -8,23 +8,23 @@ function formatPrice(price: number) {
   }).format(price);
 }
 
-/** Simple hash-based color picker for placeholder backgrounds */
-function getCategoryColor(category: string): string {
-  const colors = [
-    "from-blue-100 to-sky-50",
-    "from-violet-100 to-purple-50",
-    "from-emerald-100 to-teal-50",
-    "from-amber-100 to-yellow-50",
-    "from-rose-100 to-pink-50",
-    "from-cyan-100 to-blue-50",
-    "from-fuchsia-100 to-violet-50",
-    "from-lime-100 to-green-50",
+/** Hash-based gradient picker for card accents */
+function getAccentGradient(category: string): string {
+  const gradients = [
+    "from-teal-500/20 to-cyan-500/10",
+    "from-sky-500/20 to-blue-500/10",
+    "from-emerald-500/20 to-teal-500/10",
+    "from-amber-500/20 to-orange-500/10",
+    "from-rose-500/20 to-pink-500/10",
+    "from-cyan-500/20 to-sky-500/10",
+    "from-violet-500/20 to-indigo-500/10",
+    "from-lime-500/20 to-green-500/10",
   ];
   let hash = 0;
   for (let i = 0; i < category.length; i++) {
     hash = category.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return colors[Math.abs(hash) % colors.length];
+  return gradients[Math.abs(hash) % gradients.length];
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -33,6 +33,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Dinh dưỡng": "\uD83C\uDF7C",
   "Đồ dùng gia đình": "\uD83C\uDFE0",
   "Thời Trang": "\uD83D\uDC55",
+  "Tã": "\uD83E\uDDF7",
 };
 
 function getCategoryIcon(category_l1: string): string {
@@ -40,32 +41,76 @@ function getCategoryIcon(category_l1: string): string {
 }
 
 export default function ProductCard({ product }: { product: Product }) {
-  const bgGradient = getCategoryColor(product.category_l1 || "");
+  const accentGradient = getAccentGradient(product.category_l1 || "");
   const icon = getCategoryIcon(product.category_l1);
 
   return (
     <Link href={`/products/${product.item_id}`} className="group block">
-      <div className="relative bg-white rounded-xl border border-gray-100 hover:border-blue-200 hover:shadow-lg transition-all duration-300 p-4 h-full flex flex-col overflow-hidden group-hover:-translate-y-0.5">
-        {/* Placeholder image area */}
+      <div
+        className="relative h-full flex flex-col overflow-hidden transition-all duration-300 group-hover:-translate-y-1"
+        style={{
+          background: "rgba(30, 41, 59, 0.6)",
+          backdropFilter: "blur(8px)",
+          border: "1px solid rgba(148, 163, 184, 0.1)",
+          borderRadius: "16px",
+          padding: "16px",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "rgba(20, 184, 166, 0.4)";
+          e.currentTarget.style.boxShadow =
+            "0 0 20px rgba(20, 184, 166, 0.1), 0 8px 32px rgba(0,0,0,0.3)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "rgba(148, 163, 184, 0.1)";
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        {/* Image area with gradient */}
         <div
-          className={`bg-gradient-to-br ${bgGradient} rounded-lg h-36 flex items-center justify-center mb-3 relative overflow-hidden`}
+          className={`bg-gradient-to-br ${accentGradient} rounded-xl h-36 flex items-center justify-center mb-3 relative overflow-hidden`}
         >
-          <span className="text-4xl group-hover:scale-110 transition-transform duration-300">
+          <span className="text-4xl group-hover:scale-110 transition-transform duration-500 animate-float">
             {icon}
           </span>
-          <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 transition-colors duration-300" />
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background:
+                "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.05) 50%, transparent 60%)",
+            }}
+          />
         </div>
 
         <div className="flex-1 flex flex-col min-w-0">
-          <span className="inline-block text-[11px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full mb-1.5 w-fit truncate max-w-full">
+          {/* Category badge */}
+          <span
+            className="inline-block text-[10px] font-semibold px-2.5 py-0.5 rounded-full mb-1.5 w-fit truncate max-w-full"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(20, 184, 166, 0.12), rgba(14, 165, 233, 0.12))",
+              color: "#5eead4",
+              border: "1px solid rgba(20, 184, 166, 0.2)",
+            }}
+          >
             {product.category_l1}
           </span>
-          <h3 className="text-sm font-semibold text-gray-800 mb-1 line-clamp-2 leading-snug group-hover:text-blue-700 transition-colors">
+
+          {/* Product name */}
+          <h3 className="text-sm font-semibold text-gray-200 mb-1 line-clamp-2 leading-snug group-hover:text-teal-300 transition-colors duration-300">
             {product.category}
           </h3>
-          <p className="text-xs text-gray-400 mb-3 truncate">{product.brand}</p>
-          <div className="mt-auto pt-2 border-t border-gray-50">
-            <p className="text-base font-bold text-red-600">
+
+          {/* Brand */}
+          <p className="text-xs text-gray-400 mb-3 truncate">
+            {product.brand}
+          </p>
+
+          {/* Price */}
+          <div
+            className="mt-auto pt-2"
+            style={{ borderTop: "1px solid rgba(148, 163, 184, 0.08)" }}
+          >
+            <p className="text-base font-bold gradient-text">
               {formatPrice(product.price)}
             </p>
           </div>

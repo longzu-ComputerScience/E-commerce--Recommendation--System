@@ -1,4 +1,4 @@
-"""Product Service — handles product listing and retrieval."""
+"""Product Service: xu ly lay danh sach va chi tiet san pham."""
 
 import polars as pl
 from .data_loader import get_data_store
@@ -11,7 +11,7 @@ def list_products(
     brand: str | None = None,
     search: str | None = None,
 ) -> dict:
-    """List products with pagination and optional category/brand/search filters."""
+    """Lay danh sach san pham co phan trang va bo loc."""
     store = get_data_store()
     df = store.products
 
@@ -44,17 +44,17 @@ def list_products(
 
 
 def get_product(item_id: str) -> dict | None:
-    """Get a single product by item_id."""
+    """Lay thong tin 1 san pham theo item_id."""
     return get_data_store().get_product(item_id)
 
 
 def get_categories() -> list[str]:
-    """Get all unique category_l1 values, sorted."""
+    """Lay toan bo category_l1 duy nhat, sap xep tang dan."""
     store = get_data_store()
     return store.products["category_l1"].unique().sort().to_list()
 
 
 def get_brands() -> list[str]:
-    """Get all unique brand values, sorted."""
+    """Lay toan bo brand duy nhat, sap xep tang dan."""
     store = get_data_store()
     return store.products["brand"].unique().sort().to_list()
